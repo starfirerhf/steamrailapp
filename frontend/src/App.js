@@ -101,47 +101,54 @@ const App = () => {
                 <span className="text-xl">{expandedGame === game.appid ? "▲" : "▼"}</span>
               </div>
 
-              {/* Expanded Achievement Details */}
-              {expandedGame === game.appid && achievements[game.appid] ? (
-                <div className="mt-3 border-t border-gray-700 pt-3">
-                  <p>
-                    <span className="font-bold">Completed:</span> 
-                    {achievements[game.appid].completed ?? "N/A"} / {achievements[game.appid].total ?? "N/A"}
-                  </p>
+            {/* Expanded Achievement Details */}
+            {expandedGame === game.appid && achievements[game.appid] && (
+              <div className="mt-3 border-t border-gray-700 pt-3">
+                
+                {/* ✅ Updated text for Achievements Completed */}
+                <p className="font-bold">
+                  Achievements Completed: {achievements[game.appid].completed ?? "N/A"} / {achievements[game.appid].total ?? "N/A"}
+                </p>
 
-                  {/* Display 5 Most Recently Unlocked Achievements */}
-                  {achievements[game.appid].recent.map((ach, index) => (
-                    <div key={index} className="bg-gray-800 p-3 rounded-lg shadow-md flex flex-col items-center">
-                      {/* ✅ Debug: Log the icon URL */}
-                      {console.log(`🔍 Loading icon for ${ach.name}:`, ach.icon)}
+                {/* ✅ Add "Most Recent Achievements" Title */}
+                {achievements[game.appid].recent && achievements[game.appid].recent.length > 0 && (
+                  <p className="font-bold mt-2">🏆 Most Recent Achievements:</p>
+                )}
 
-                      {/* ✅ Show Achievement Name */}
-                      <p className="text-sm font-bold text-center mb-2">{ach.name}</p>
-
-                      {/* ✅ Show Achievement Icon with Fallback */}
-                      {ach.icon ? (
+                {/* ✅ Display 5 Most Recently Unlocked Achievements (Left-aligned icon) */}
+                {achievements[game.appid].recent.length > 0 ? (
+                  <div className="flex flex-col space-y-4 mt-3">
+                    {achievements[game.appid].recent.map((ach, index) => (
+                      <div key={index} className="bg-gray-800 p-3 rounded-lg shadow-md flex items-center space-x-4">
+                        
+                        {/* ✅ Achievement Icon (Left) */}
                         <img
                           src={ach.icon}
                           alt={ach.name}
-                          className="w-16 h-16 mb-2 rounded-md"
-                          onError={(e) => (e.target.src = "https://via.placeholder.com/64?text=?")} // Fallback image
+                          className="w-16 h-16 rounded-md"
+                          onError={(e) => {
+                            console.error(`❌ Image failed to load: ${e.target.src}`);
+                            e.target.src = "https://via.placeholder.com/64?text=?";
+                          }}
                         />
-                      ) : (
-                        <div className="w-16 h-16 mb-2 bg-gray-700 rounded-md flex items-center justify-center">
-                          ❓
-                        </div>
-                      )}
 
-                      {/* ✅ Show Unlock Date */}
-                      <p className="text-xs text-gray-400">
-                        Unlocked on {new Date(ach.unlocktime * 1000).toLocaleDateString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-400 text-sm">Loading achievement data...</p>
-              )}
+                        {/* ✅ Achievement Info (Right) */}
+                        <div className="text-left">
+                          <p className="text-sm font-bold">{ach.name}</p>
+                          <p className="text-xs text-gray-300">{ach.description || "No description available."}</p>
+                          <p className="text-xs text-gray-400">
+                            Unlocked on {new Date(ach.unlocktime * 1000).toLocaleDateString()}
+                          </p>
+                        </div>
+
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">No recently unlocked achievements.</p>
+                )}
+              </div>
+            )}
             </div>
           ))}
         </div>
