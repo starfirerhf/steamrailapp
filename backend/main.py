@@ -2,8 +2,10 @@ import os
 import requests
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, HTTPException
 
 app = FastAPI()
+router = APIRouter()
 
 STEAM_API_KEY = os.getenv("STEAM_API_KEY")  # Set this in Docker
 
@@ -38,28 +40,67 @@ def get_games(steam_id: str):
         for game in sorted_games
     ]
 
-@app.get("/achievements/{steam_id}/{appid}")
+@router.get("/achievements/{steam_id}/{appid}")
 def get_achievements(steam_id: str, appid: str):
-    """Fetch achievements for a game only when clicked."""
-    url = f"http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?appid={appid}&key={STEAM_API_KEY}&steamid={steam_id}"
-    response = requests.get(url)
-    data = response.json()
+    # 1️⃣ Fetch player achievements (unlocked status)
+    player_url = "https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/"
+    player_params = {
+        "appid": appid,
+        "key": STEAM_API_KEY,
+        "steamid": steam_id
+    }
+    player_response = requests.get(player_url, params=player_params).json()
 
-    if "playerstats" not in data or not data["playerstats"].get("success", False):
-        return {"completed": "N/A", "total": "N/A", "nearby": []}
+    if "playerstats" not in player_response or "achievements" not in player_response["playerstats"]:
+        return {"completed": 0, "total": 0, "recent": []}
 
-    achievements = data["playerstats"].get("achievements", [])
-    
-    total = len(achievements)
-    completed = sum(1 for ach in achievements if ach.get("achieved", 0) == 1)
-    
-    # Find achievements close to completion (e.g., progress >= 80%)
-    nearby_achievements = [
-        {
-            "name": ach.get("name", "Unknown"),
-            "progress": ach.get("percent", 0)
-        }
-        for ach in achievements if ach.get("percent", 0) >= 80 and ach.get("achieved", 0) == 0
-    ]
+    player_achievements = player_response["playerstats"]["achievements"]
 
-    return {"completed": completed, "total": total, "nearby": nearby_achievements}
+    # 2️⃣ Fetch game achievement schema (names & descriptions)
+    schema_url = f"https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/"
+    schema_params = {"appid": appid, "key": STEAM_API_KEY}
+    schema_response = requests.get(schema_url, params=schema_params).json()
+
+    if "game" not in schema_response or "availableGameStats" not in schema_response["game"]:
+        return {"completed": 0, "total": 0, "recent": []}
+
+    schema_achievements = schema_response["game"]["availableGameStats"]["achievements"]
+
+    # 3️⃣ Create a lookup dictionary for schema data
+    achievement_dict = {ach["name"]: ach for ach in schema_achievements}
+
+    # 4️⃣ Merge schema data with unlocked achievements
+    combined_achievements = []
+    for player_ach in player_achievements:
+        api_name = player_ach["apiname"]
+        unlocked = player_ach["achieved"]
+        
+        schema_ach = achievement_dict.get(api_name, {})
+
+        # Ensure the icon URL is fully formed
+        icon_url = schema_ach.get("icon", "")
+        if icon_url and not icon_url.startswith("http"):
+            icon_url = f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/{appid}/{icon_url}"
+
+        combined_achievements.append({
+            "name": schema_ach.get("displayName", api_name),  # Use schema name if available
+            "description": schema_ach.get("description", "No description available"),
+            "icon": icon_url,  # Now always a full URL
+            "achieved": unlocked,
+            "unlocktime": player_ach["unlocktime"]
+        })
+
+    # 5️⃣ Sort & return the 5 most recently unlocked achievements
+    recent_achievements = sorted(
+        [ach for ach in combined_achievements if ach["achieved"] == 1],
+        key=lambda x: x["unlocktime"],
+        reverse=True
+    )[:5]
+
+    return {
+        "completed": sum(1 for ach in combined_achievements if ach["achieved"] == 1),
+        "total": len(combined_achievements),
+        "recent": recent_achievements
+    }
+
+app.include_router(router)
