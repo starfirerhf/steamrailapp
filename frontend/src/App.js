@@ -13,13 +13,30 @@ const App = () => {
   const fetchGames = async () => {
     if (!steamId) return;
     setLoading(true);
+    
     try {
       const response = await fetch(`${API_URL}/games/${steamId}`);
+      console.log(`📡 Fetching games for Steam ID or username: ${steamId}`);
+
+      if (!response.ok) {
+        throw new Error(`❌ API Error ${response.status}: ${await response.text()}`);
+      }
+
       const data = await response.json();
+      console.log("✅ API Response:", data); // 🔹 Debug response
+
+      if (!Array.isArray(data)) {
+        console.error("❌ Expected an array but got:", data);
+        setGames([]); // Prevents crash
+        return;
+      }
+
       setGames(data);
     } catch (error) {
-      console.error("Failed to fetch games", error);
+      console.error("❌ Fetch error:", error);
+      setGames([]);
     }
+
     setLoading(false);
   };
 
