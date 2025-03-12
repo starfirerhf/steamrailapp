@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 const AUTH_URL = "http://localhost:5000"; // Backend for authentication
 const API_URL = "http://localhost:8000"; // Backend for authentication
@@ -11,49 +11,62 @@ const App = () => {
   const [achievements, setAchievements] = useState({});
   const [authenticated, setAuthenticated] = useState(false);
 
-  // ✅ Extract Steam ID from URL if redirected from Steam login
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const steamIdFromUrl = params.get("steam_id");
-
-    if (steamIdFromUrl) {
-      setSteamId(steamIdFromUrl);
-      setAuthenticated(true);
-      window.history.replaceState({}, document.title, "/"); // ✅ Clean up URL
+  // ✅ Define fetchGames BEFORE useEffect
+  const fetchGames = useCallback(async (id) => {
+    const steamIDToUse = id || steamId;
+    if (!steamIDToUse) {
+      console.warn("⚠ No Steam ID provided for fetching games.");
+      return;
     }
-  }, []);
-
-  // Fetch user's game library
-  const fetchGames = async () => {
-    if (!steamId) return;
+  
+    console.log(`📡 Fetching games for Steam ID: ${steamIDToUse}`);
     setLoading(true);
-
+  
     try {
-      const response = await fetch(`${API_URL}/games/${steamId}`);
-      console.log(`📡 Fetching games for Steam ID: ${steamId}`);
-
+      const response = await fetch(`${API_URL}/games/${steamIDToUse}`);
+      
+      console.log(`🛰️ API Call: ${API_URL}/games/${steamIDToUse}`);
+      
       if (!response.ok) {
         throw new Error(`❌ API Error ${response.status}: ${await response.text()}`);
       }
-
+  
       const data = await response.json();
       console.log("✅ API Response:", data);
-
+  
       if (!Array.isArray(data)) {
         console.error("❌ Expected an array but got:", data);
-        setGames([]);
+        setGames([]); // Prevent crash
         return;
       }
-
+  
       setGames(data);
     } catch (error) {
       console.error("❌ Fetch error:", error);
       setGames([]);
     }
-
+  
     setLoading(false);
-  };
-
+  }, [steamId]);
+  
+  
+  // ✅ Extract Steam ID from URL if redirected from Steam login
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const steamIdFromUrl = params.get("steam_id");
+  
+    console.log("🔄 useEffect triggered with Steam ID:", steamIdFromUrl);
+  
+    if (steamIdFromUrl) {
+      setSteamId(steamIdFromUrl);
+      setAuthenticated(true);
+      window.history.replaceState({}, document.title, "/"); // ✅ Clean up URL
+  
+      fetchGames(steamIdFromUrl); // ✅ Should be fetching games here
+    }
+  }, [fetchGames]);
+  
+  
   // Fetch achievements only when the game is clicked
   const fetchAchievements = async (appid) => {
     if (achievements[appid]) {
