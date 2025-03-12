@@ -4,3 +4,5 @@ requests
 httpx
 sqlalchemy
 asyncpg
+flask
+flask_cors
