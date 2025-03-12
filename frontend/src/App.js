@@ -129,7 +129,7 @@ const App = () => {
         <div className="flex justify-center mb-6">
           <a href={`${AUTH_URL}/login`}>
             <img
-              src="https://community.cloudflare.steamstatic.com/public/images/signinthroughsteam/sits_02.png"
+              src="https://community.cloudflare.steamstatic.com/public/images/signinthroughsteam/sits_01.png"
               alt="Sign in through Steam"
               className="w-48 hover:opacity-80 transition-opacity duration-300"
             />
@@ -140,24 +140,6 @@ const App = () => {
           ✅ Logged in as: <strong>{steamName || steamId}</strong>
         </p>
       )}
-
-      {/* Input for Steam ID (Disabled if logged in) */}
-      <div className="flex justify-center gap-4 mb-6">
-        <input
-          type="text"
-          placeholder="Enter Steam ID"
-          value={steamId}
-          onChange={(e) => setSteamId(e.target.value)}
-          className="p-2 rounded-lg text-black"
-          disabled={authenticated} // ✅ Disable input if logged in
-        />
-        <button
-          onClick={fetchGames}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
-        >
-          Fetch Games
-        </button>
-      </div>
 
       {/* Loading Indicator */}
       {loading && <p className="text-center text-lg">Loading games...</p>}
