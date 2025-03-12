@@ -49,6 +49,29 @@ const App = () => {
     setLoading(false);
   }, [steamId]);
   
+  const [steamName, setSteamName] = useState("");
+
+  const fetchSteamName = useCallback(async (id) => {
+    if (!id) return; // Ensure steamId is valid before making the request
+    try {
+      const response = await fetch(`${API_URL}/steamuser/${id}`);
+
+      if (!response.ok) {
+        throw new Error(`❌ API Error ${response.status}: ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      console.log("✅ Steam Name API Response:", data);
+
+      if (data && data.personaname) {
+        setSteamName(data.personaname); // Set Steam username in state
+      }
+    } catch (error) {
+      console.error("❌ Failed to fetch Steam name", error);
+      setSteamName(id); // Fallback to the Steam ID if the API fails
+    }
+  }, []);
+
   
   // ✅ Extract Steam ID from URL if redirected from Steam login
   useEffect(() => {
@@ -62,9 +85,10 @@ const App = () => {
       setAuthenticated(true);
       window.history.replaceState({}, document.title, "/"); // ✅ Clean up URL
   
+      fetchSteamName(steamIdFromUrl);
       fetchGames(steamIdFromUrl); // ✅ Should be fetching games here
     }
-  }, [fetchGames]);
+  }, [fetchGames, fetchSteamName]);
   
   
   // Fetch achievements only when the game is clicked
@@ -113,7 +137,7 @@ const App = () => {
         </div>
       ) : (
         <p className="text-center text-lg mb-4">
-          ✅ Logged in as: <strong>{steamId}</strong>
+          ✅ Logged in as: <strong>{steamName || steamId}</strong>
         </p>
       )}
 

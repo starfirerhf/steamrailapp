@@ -16,6 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # ✅ Convert Steam Username to SteamID64
 def get_steam_id(steam_name: str) -> str:
     url = "https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/"
@@ -32,6 +33,23 @@ def get_steam_id(steam_name: str) -> str:
         return data["response"]["steamid"]
 
     raise HTTPException(status_code=404, detail=f"Steam username '{steam_name}' not found or invalid.")
+
+
+# ✅ Get Steam user name from steam id
+@app.get("/steamuser/{steam_id}")
+def get_steam_user(steam_id: str):
+    """Fetch Steam username for a given Steam ID."""
+    url = f"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/"
+    params = {"key": STEAM_API_KEY, "steamids": steam_id}
+
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    if "response" in data and "players" in data["response"] and len(data["response"]["players"]) > 0:
+        return {"personaname": data["response"]["players"][0]["personaname"]}
+    
+    raise HTTPException(status_code=404, detail="Steam user not found")
+
 
 # ✅ Fetch Owned Games (Supports Steam ID or Steam Username)
 @app.get("/games/{steam_id_or_name}")
