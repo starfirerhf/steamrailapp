@@ -2,6 +2,9 @@ import os
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+import urllib.parse
+from duckduckgo_search import DDGS
 
 app = FastAPI()
 
@@ -148,3 +151,35 @@ def get_achievements(steam_id_or_name: str, appid: str):
         "total": len(combined_achievements),
         "recent": recent_achievements
     }
+
+
+@app.get("/guide/{game_name}")
+def guide_redirect(game_name: str):
+    """Redirects to the top TrueAchievements guide for a given game"""
+    query = f"site:trueachievements.com {game_name} strategy guide"
+    encoded_query = urllib.parse.quote(query)
+    google_search_url = f"https://www.google.com/search?q={encoded_query}"
+
+    return RedirectResponse(url=google_search_url)
+
+
+@app.get("/guidelink/{game_name}")
+def get_trueachievements_guide(game_name: str):
+    query = f"{game_name} site:trueachievements.com guide"
+    print(f"🔍 Searching DuckDuckGo for: {query}")
+
+    try:
+        with DDGS() as ddgs:
+            results = ddgs.text(query, max_results=5)
+
+            for result in results:
+                url = result.get("href") or result.get("url")
+                if url and "trueachievements.com" in url:
+                    print(f"✅ Found guide URL: {url}")
+                    return {"guide_url": url}
+
+        raise HTTPException(status_code=404, detail="No TrueAchievements guide found.")
+
+    except Exception as e:
+        print(f"❌ Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="DuckDuckGo search error.")
