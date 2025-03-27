@@ -13,6 +13,7 @@ const App = () => {
   const [steamName, setSteamName] = useState("");
   const [showCompleted, setShowCompleted] = useState(true); // Toggle between completed/incomplete
   const [completedSort, setCompletedSort] = useState("recent"); // or "rare"
+  const [incompleteSort, setIncompleteSort] = useState("common"); // or "rare"
 
   const fetchGames = useCallback(async (id) => {
     const steamIDToUse = id || steamId;
@@ -196,6 +197,23 @@ const App = () => {
                       </button>
                     </div>
                   )}
+                  {!showCompleted && (
+                    <div className="flex gap-2 items-center mb-2">
+                      <p className="font-bold">🔻 Sort by:</p>
+                      <button
+                        onClick={() => setIncompleteSort("common")}
+                        className={`px-2 py-1 rounded text-sm ${incompleteSort === "common" ? "bg-blue-600" : "bg-gray-700"}`}
+                      >
+                        Most Common
+                      </button>
+                      <button
+                        onClick={() => setIncompleteSort("rare")}
+                        className={`px-2 py-1 rounded text-sm ${incompleteSort === "rare" ? "bg-blue-600" : "bg-gray-700"}`}
+                      >
+                        Most Rare
+                      </button>
+                    </div>
+                  )}
 
                   {(() => {
                     const filtered = achievements[game.appid].all.filter(ach =>
@@ -206,7 +224,9 @@ const App = () => {
                       ? completedSort === "recent"
                         ? [...filtered].sort((a, b) => b.unlocktime - a.unlocktime)
                         : [...filtered].sort((a, b) => a.rarity - b.rarity)
-                      : filtered;
+                      : incompleteSort === "common"
+                        ? [...filtered].sort((a, b) => b.rarity - a.rarity)
+                        : [...filtered].sort((a, b) => a.rarity - b.rarity);
 
                     return sorted.length > 0 ? (
                       <div className="flex flex-col space-y-4 mt-3">
@@ -251,3 +271,4 @@ const App = () => {
 };
 
 export default App;
+ 
