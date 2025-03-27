@@ -11,6 +11,8 @@ const App = () => {
   const [achievements, setAchievements] = useState({});
   const [authenticated, setAuthenticated] = useState(false);
   const [steamName, setSteamName] = useState("");
+  const [showCompleted, setShowCompleted] = useState(true); // Toggle between completed/incomplete
+  const [completedSort, setCompletedSort] = useState("recent"); // or "rare"
 
   const fetchGames = useCallback(async (id) => {
     const steamIDToUse = id || steamId;
@@ -65,7 +67,7 @@ const App = () => {
       const data = await response.json();
       setAchievements((prev) => ({
         ...prev,
-        [appid]: { ...data, recent: data.recent },
+        [appid]: data,
       }));
       setExpandedGame(appid);
     } catch (error) {
@@ -158,38 +160,86 @@ const App = () => {
 
               {expandedGame === game.appid && achievements[game.appid] && (
                 <div className="mt-3 border-t border-gray-700 pt-3">
+                  <div className="flex gap-4 mb-3">
+                    <button
+                      onClick={() => setShowCompleted(true)}
+                      className={`px-3 py-1 rounded ${showCompleted ? 'bg-blue-600' : 'bg-gray-700'}`}
+                    >
+                      Completed
+                    </button>
+                    <button
+                      onClick={() => setShowCompleted(false)}
+                      className={`px-3 py-1 rounded ${!showCompleted ? 'bg-blue-600' : 'bg-gray-700'}`}
+                    >
+                      Incomplete
+                    </button>
+                  </div>
+
                   <p className="font-bold">
                     Achievements Completed: {achievements[game.appid].completed ?? "N/A"} / {achievements[game.appid].total ?? "N/A"}
                   </p>
-                  {achievements[game.appid].recent && achievements[game.appid].recent.length > 0 && (
-                    <p className="font-bold mt-2">🏆 Most Recent Achievements:</p>
-                  )}
-                  {achievements[game.appid].recent.length > 0 ? (
-                    <div className="flex flex-col space-y-4 mt-3">
-                      {achievements[game.appid].recent.map((ach, index) => (
-                        <div key={index} className="bg-gray-800 p-3 rounded-lg shadow-md flex items-center space-x-4">
-                          <img
-                            src={ach.icon}
-                            alt={ach.name}
-                            className="w-16 h-16 rounded-md"
-                            onError={(e) => {
-                              console.error(`❌ Image failed to load: ${e.target.src}`);
-                              e.target.src = "https://via.placeholder.com/64?text=?";
-                            }}
-                          />
-                          <div className="text-left">
-                            <p className="text-sm font-bold">{ach.name}</p>
-                            <p className="text-xs text-gray-300">{ach.description || "No description available."}</p>
-                            <p className="text-xs text-gray-400">
-                              Unlocked on {new Date(ach.unlocktime * 1000).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+
+                  {showCompleted && (
+                    <div className="flex gap-2 items-center mb-2">
+                      <p className="font-bold">🏆 Sort by:</p>
+                      <button
+                        onClick={() => setCompletedSort("recent")}
+                        className={`px-2 py-1 rounded text-sm ${completedSort === "recent" ? "bg-blue-600" : "bg-gray-700"}`}
+                      >
+                        Most Recent
+                      </button>
+                      <button
+                        onClick={() => setCompletedSort("rare")}
+                        className={`px-2 py-1 rounded text-sm ${completedSort === "rare" ? "bg-blue-600" : "bg-gray-700"}`}
+                      >
+                        Most Rare
+                      </button>
                     </div>
-                  ) : (
-                    <p className="text-gray-400 text-sm">No recently unlocked achievements.</p>
                   )}
+
+                  {(() => {
+                    const filtered = achievements[game.appid].all.filter(ach =>
+                      showCompleted ? ach.achieved === 1 : ach.achieved === 0
+                    );
+
+                    const sorted = showCompleted
+                      ? completedSort === "recent"
+                        ? [...filtered].sort((a, b) => b.unlocktime - a.unlocktime)
+                        : [...filtered].sort((a, b) => a.rarity - b.rarity)
+                      : filtered;
+
+                    return sorted.length > 0 ? (
+                      <div className="flex flex-col space-y-4 mt-3">
+                        {sorted.map((ach, index) => (
+                          <div key={index} className="bg-gray-800 p-3 rounded-lg shadow-md flex items-center space-x-4">
+                            <img
+                              src={ach.icon}
+                              alt={ach.name}
+                              className="w-16 h-16 rounded-md"
+                              onError={(e) => {
+                                console.error(`❌ Image failed to load: ${e.target.src}`);
+                                e.target.src = "https://via.placeholder.com/64?text=?";
+                              }}
+                            />
+                            <div className="text-left">
+                              <p className="text-sm font-bold">{ach.name}</p>
+                              <p className="text-xs text-gray-300">{ach.description || "No description available."}</p>
+                              {ach.unlocktime > 0 && (
+                                <p className="text-xs text-gray-400">
+                                  Unlocked on {new Date(ach.unlocktime * 1000).toLocaleDateString()}
+                                </p>
+                              )}
+                              <p className="text-xs text-yellow-400">
+                                Rarity: {ach.rarity ? `${parseFloat(ach.rarity).toFixed(2)}%` : "N/A"}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-400 text-sm">No achievements to show.</p>
+                    );
+                  })()}
                 </div>
               )}
             </div>

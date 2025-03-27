@@ -8,12 +8,12 @@ from duckduckgo_search import DDGS
 
 app = FastAPI()
 
-STEAM_API_KEY = os.getenv("STEAM_API_KEY")  # Set this in Docker
-FRONTEND_URL = os.getenv("FRONTEND_URL")  # Set this in Docker
+STEAM_API_KEY = os.getenv("STEAM_API_KEY")
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Change to your frontend URL in production
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,7 +50,7 @@ def get_steam_user(steam_id: str):
 
     if "response" in data and "players" in data["response"] and len(data["response"]["players"]) > 0:
         return {"personaname": data["response"]["players"][0]["personaname"]}
-    
+
     raise HTTPException(status_code=404, detail="Steam user not found")
 
 
@@ -66,8 +66,12 @@ def get_games(steam_id_or_name: str):
             return []  # Return empty array to prevent frontend crashes
 
     url = f"http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/"
-    params = {"key": STEAM_API_KEY, "steamid": steam_id_or_name, "format": "json", "include_appinfo": "true"}
-
+    params = {
+        "key": STEAM_API_KEY,
+        "steamid": steam_id_or_name,
+        "format": "json",
+        "include_appinfo": "true"
+    }
     response = requests.get(url, params=params)
 
     try:
@@ -102,12 +106,22 @@ def get_achievements(steam_id_or_name: str, appid: str):
         except HTTPException:
             raise HTTPException(status_code=404, detail="Invalid Steam username or Steam ID")
 
+    # Fetch global achievement percentages
+    percent_url = f"https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002/"
+    percent_params = {"gameid": appid}
+    percent_response = requests.get(percent_url, params=percent_params).json()
+
+    global_percentages = {
+        ach["name"]: ach["percent"]
+        for ach in percent_response.get("achievementpercentages", {}).get("achievements", [])
+    }
+    
     player_url = "https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/"
     player_params = {"appid": appid, "key": STEAM_API_KEY, "steamid": steam_id_or_name}
     player_response = requests.get(player_url, params=player_params).json()
 
     if "playerstats" not in player_response or "achievements" not in player_response["playerstats"]:
-        return {"completed": 0, "total": 0, "recent": []}
+        return {"completed": 0, "total": 0, "recent": [], "all": []}
 
     player_achievements = player_response["playerstats"]["achievements"]
 
@@ -116,13 +130,13 @@ def get_achievements(steam_id_or_name: str, appid: str):
     schema_response = requests.get(schema_url, params=schema_params).json()
 
     if "game" not in schema_response or "availableGameStats" not in schema_response["game"]:
-        return {"completed": 0, "total": 0, "recent": []}
+        return {"completed": 0, "total": 0, "recent": [], "all": []}
 
     schema_achievements = schema_response["game"]["availableGameStats"]["achievements"]
 
     achievement_dict = {ach["name"]: ach for ach in schema_achievements}
 
-    combined_achievements = []
+    combined = []
     for player_ach in player_achievements:
         api_name = player_ach["apiname"]
         unlocked = player_ach["achieved"]
@@ -132,26 +146,29 @@ def get_achievements(steam_id_or_name: str, appid: str):
         if icon_url and not icon_url.startswith("http"):
             icon_url = f"https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/{appid}/{icon_url}"
 
-        combined_achievements.append({
+        combined.append({
             "name": schema_ach.get("displayName", api_name),
             "description": schema_ach.get("description", "No description available"),
             "icon": icon_url,
             "achieved": unlocked,
-            "unlocktime": player_ach["unlocktime"]
+            "unlocktime": player_ach["unlocktime"],
+            "rarity": global_percentages.get(api_name, 100.0)  # For rarity sorting
         })
 
-    recent_achievements = sorted(
-        [ach for ach in combined_achievements if ach["achieved"] == 1],
-        key=lambda x: x["unlocktime"],
-        reverse=True
-    )[:5]
+    completed = [a for a in combined if a["achieved"] == 1]
+    incomplete = [a for a in combined if a["achieved"] == 0]
+    recent = sorted(completed, key=lambda x: x["unlocktime"], reverse=True)[:5]
+
+    print(f"🔍 Global percentages found: {list(global_percentages.items())[:5]}")
+    print(f"🔍 Sample achievement: {combined[0]}")
 
     return {
-        "completed": sum(1 for ach in combined_achievements if ach["achieved"] == 1),
-        "total": len(combined_achievements),
-        "recent": recent_achievements
+        "completed": len(completed),
+        "total": len(combined),
+        "recent": recent,
+        "all": combined,
+        "incomplete": incomplete
     }
-
 
 @app.get("/guide/{game_name}")
 def guide_redirect(game_name: str):
