@@ -11,7 +11,12 @@ services:
     environment:
       - PYTHONPATH=/app
       - STEAM_API_KEY=${STEAM_API_KEY}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - AUTH_URL=${AUTH_URL}
       - ENV=development
+      - FLASK_APP=./backend/auth.py
+    command: >
+      sh -c "uvicorn main:app --host 0.0.0.0 --port 8000 & flask run --host 0.0.0.0 --port 5000"
 
   frontend:
     build: ./frontend
@@ -23,7 +28,9 @@ services:
       - backend
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - REACT_APP_AUTH_URL=${REACT_APP_AUTH_URL}
       - REACT_APP_API_URL=${REACT_APP_API_URL}
+      - HOST=0.0.0.0
     stdin_open: true
     tty: true
 

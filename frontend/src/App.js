@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 
-const AUTH_URL = "http://localhost:5000"; // Backend for authentication
-const API_URL = "http://localhost:8000"; // Backend for API
+const AUTH_URL = process.env.REACT_APP_AUTH_URL || "http://localhost:5000"; // AUTH
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";   // API
 
 const App = () => {
   const [steamId, setSteamId] = useState("");
