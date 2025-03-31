@@ -5,15 +5,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 import urllib.parse
 from duckduckgo_search import DDGS
+# from dotenv import load_dotenv
+# load_dotenv()
 
 app = FastAPI()
 
 STEAM_API_KEY = os.getenv("STEAM_API_KEY")
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 
+print(f"STEAM_API_KEY: {STEAM_API_KEY}")
+print(f"FRONTEND_URL: {FRONTEND_URL}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    # allow_origins=["http://localhost:3000"],
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -172,8 +178,8 @@ def get_achievements(steam_id_or_name: str, appid: str):
 
 @app.get("/guide/{game_name}")
 def guide_redirect(game_name: str):
-    """Redirects to the top TrueAchievements guide for a given game"""
-    query = f"site:trueachievements.com {game_name} strategy guide"
+    """Redirects to the top TrueSteamAchievements guide for a given game"""
+    query = f"site:truesteamachievements.com {game_name} strategy guide"
     encoded_query = urllib.parse.quote(query)
     google_search_url = f"https://www.google.com/search?q={encoded_query}"
 
@@ -182,7 +188,7 @@ def guide_redirect(game_name: str):
 
 @app.get("/guidelink/{game_name}")
 def get_trueachievements_guide(game_name: str):
-    query = f"{game_name} site:trueachievements.com guide"
+    query = f"{game_name} site:truesteamachievements.com guide"
     print(f"🔍 Searching DuckDuckGo for: {query}")
 
     try:
@@ -191,11 +197,11 @@ def get_trueachievements_guide(game_name: str):
 
             for result in results:
                 url = result.get("href") or result.get("url")
-                if url and "trueachievements.com" in url:
+                if url and "truesteamachievements.com" in url:
                     print(f"✅ Found guide URL: {url}")
                     return {"guide_url": url}
 
-        raise HTTPException(status_code=404, detail="No TrueAchievements guide found.")
+        raise HTTPException(status_code=404, detail="No TrueSteamAchievements guide found.")
 
     except Exception as e:
         print(f"❌ Search failed: {str(e)}")
